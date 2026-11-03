@@ -1,64 +1,23 @@
 package com.cinemax.controller;
 
-import com.cinemax.dto.MovieRequest;
-import com.cinemax.dto.ShowTimeRequest;
-import com.cinemax.model.BookingView;
-import com.cinemax.model.Movie;
-import com.cinemax.model.ShowTime;
-import com.cinemax.repository.BookingRepository;
-import com.cinemax.service.BookingService;
-import com.cinemax.service.CatalogService;
-import jakarta.validation.Valid;
+import com.cinemax.service.MernCompatibilityService;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.*;
-
-import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 
-/** Admin dashboard - every route here requires the ADMIN role (see SecurityConfig). */
+/** Legacy admin endpoints consumed by the React admin dashboard. */
 @RestController
 @RequestMapping("/api/admin")
 public class AdminController {
-    private final CatalogService catalog;
-    private final BookingService bookings;
-    private final BookingRepository bookingRepo;
-
-    public AdminController(CatalogService catalog, BookingService bookings, BookingRepository bookingRepo) {
-        this.catalog = catalog;
-        this.bookings = bookings;
-        this.bookingRepo = bookingRepo;
-    }
-
-    @GetMapping("/stats")
-    public Map<String, Object> stats() {
-        return bookingRepo.stats();
-    }
-
-    @PostMapping("/movies")
-    @ResponseStatus(HttpStatus.CREATED)
-    public Movie addMovie(@Valid @RequestBody MovieRequest r) {
-        return catalog.createMovie(r);
-    }
-
-    @PutMapping("/movies/{id}")
-    public Movie updateMovie(@PathVariable long id, @Valid @RequestBody MovieRequest r) {
-        return catalog.updateMovie(id, r);
-    }
-
-    @DeleteMapping("/movies/{id}")
-    @ResponseStatus(HttpStatus.NO_CONTENT)
-    public void deleteMovie(@PathVariable long id) {
-        catalog.deleteMovie(id);
-    }
-
-    @PostMapping("/showtimes")
-    @ResponseStatus(HttpStatus.CREATED)
-    public ShowTime addShowTime(@Valid @RequestBody ShowTimeRequest r) {
-        return catalog.createShowTime(r);
-    }
-
-    @GetMapping("/bookings")
-    public List<BookingView> allBookings() {
-        return bookings.allBookings();
-    }
+    private final MernCompatibilityService api;
+    public AdminController(MernCompatibilityService api){this.api=api;}
+    @GetMapping("/stats") public Object stats(){return api.stats();}
+    @GetMapping("/users") public Object users(){return api.allUsers();}
+    @GetMapping("/bookings") public Object bookings(){return api.adminBookings();}
+    @PutMapping("/users/{id}/role") public Object role(@PathVariable long id,@RequestBody Map<String,Object> body){return api.updateRole(id,Objects.toString(body.get("role"),""));}
+    @PostMapping("/movies") @ResponseStatus(HttpStatus.CREATED) public Object createMovie(@RequestBody Map<String,Object> body){return api.createMovie(body);}
+    @PutMapping("/movies/{id}") public Object updateMovie(@PathVariable long id,@RequestBody Map<String,Object> body){return api.updateMovie(id,body);}
+    @DeleteMapping("/movies/{id}") public Object deleteMovie(@PathVariable long id){return api.deleteMovie(id);}
+    @PostMapping("/showtimes") @ResponseStatus(HttpStatus.CREATED) public Object createShowTime(@RequestBody Map<String,Object> body){return api.createShowTime(body);}
 }

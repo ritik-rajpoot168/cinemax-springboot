@@ -4,6 +4,8 @@ import com.cinemax.exception.ApiException;
 import com.stripe.Stripe;
 import com.stripe.exception.StripeException;
 import com.stripe.model.PaymentIntent;
+import com.stripe.model.Event;
+import com.stripe.net.Webhook;
 import com.stripe.param.PaymentIntentCreateParams;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
@@ -18,9 +20,12 @@ public class PaymentService {
     public record Intent(String id, String clientSecret, boolean mock) {}
 
     private final String secretKey;
+    private final String webhookSecret;
 
-    public PaymentService(@Value("${app.stripe.secret-key:}") String secretKey) {
+    public PaymentService(@Value("${app.stripe.secret-key:}") String secretKey,
+                          @Value("${app.stripe.webhook-secret:}") String webhookSecret) {
         this.secretKey = secretKey;
+        this.webhookSecret = webhookSecret;
     }
 
     private boolean mock() {
@@ -54,6 +59,17 @@ public class PaymentService {
             return "succeeded".equals(PaymentIntent.retrieve(paymentRef).getStatus());
         } catch (StripeException e) {
             return false;
+        }
+    }
+
+    public Event verifyWebhook(String payload, String signature) {
+        if (webhookSecret == null || webhookSecret.isBlank()) {
+            throw new ApiException(HttpStatus.SERVICE_UNAVAILABLE, "Stripe webhook is not configured");
+        }
+        try {
+            return Webhook.constructEvent(payload, signature, webhookSecret);
+        } catch (Exception e) {
+            throw new ApiException(HttpStatus.BAD_REQUEST, "Invalid Stripe webhook signature");
         }
     }
 }

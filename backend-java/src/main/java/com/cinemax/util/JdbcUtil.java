@@ -6,7 +6,6 @@ import org.springframework.jdbc.support.KeyHolder;
 
 import java.sql.PreparedStatement;
 import java.sql.Statement;
-import java.util.Objects;
 
 public final class JdbcUtil {
     private JdbcUtil() {}
@@ -21,6 +20,13 @@ public final class JdbcUtil {
             }
             return ps;
         }, keyHolder);
-        return Objects.requireNonNull(keyHolder.getKey()).longValue();
+        Object key = keyHolder.getKeyList().stream().findFirst()
+                .map(row -> row.entrySet().stream()
+                        .filter(entry -> "id".equalsIgnoreCase(String.valueOf(entry.getKey())))
+                        .map(java.util.Map.Entry::getValue).findFirst().orElse(null))
+                .orElse(null);
+        if (key == null) key = keyHolder.getKey();
+        if (!(key instanceof Number number)) throw new IllegalStateException("Insert did not return a numeric id");
+        return number.longValue();
     }
 }

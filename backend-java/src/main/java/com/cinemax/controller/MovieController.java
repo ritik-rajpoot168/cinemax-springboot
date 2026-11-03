@@ -1,37 +1,27 @@
 package com.cinemax.controller;
 
-import com.cinemax.model.Movie;
-import com.cinemax.model.ShowTime;
-import com.cinemax.service.CatalogService;
+import com.cinemax.security.AuthUser;
+import com.cinemax.service.MernCompatibilityService;
+import org.springframework.http.HttpStatus;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
-import java.util.List;
+import java.util.Map;
 
+/** Routes and response shapes used by the original MERN React client. */
 @RestController
 @RequestMapping("/api/movies")
 public class MovieController {
-    private final CatalogService catalog;
+    private final MernCompatibilityService api;
+    public MovieController(MernCompatibilityService api){this.api=api;}
 
-    public MovieController(CatalogService catalog) {
-        this.catalog = catalog;
-    }
-
-    /** Browse all movies with filters: ?genre=Action&language=English&q=dark&nowShowing=true */
-    @GetMapping
-    public List<Movie> list(@RequestParam(required = false) String genre,
-                            @RequestParam(required = false) String language,
-                            @RequestParam(required = false) String q,
-                            @RequestParam(required = false) Boolean nowShowing) {
-        return catalog.listMovies(genre, language, q, nowShowing);
-    }
-
-    @GetMapping("/{id}")
-    public Movie get(@PathVariable long id) {
-        return catalog.getMovie(id);
-    }
-
-    @GetMapping("/{id}/showtimes")
-    public List<ShowTime> showTimes(@PathVariable long id) {
-        return catalog.showTimesForMovie(id);
-    }
+    @GetMapping public Map<String,Object> list(@RequestParam Map<String,String> query){return api.movies(query);}
+    @GetMapping("/featured") public Object featured(){return api.featured();}
+    @GetMapping("/recommendations") public Object personalized(@AuthenticationPrincipal AuthUser user){return api.personalizedRecommendations(user.id());}
+    @GetMapping("/{id}") public Object get(@PathVariable long id){return api.movie(id,true);}
+    @PostMapping("/favorite/{id}") public Object favorite(@AuthenticationPrincipal AuthUser user,@PathVariable long id){return api.toggleFavorite(user.id(),id);}
+    @PostMapping("/review/{id}") public Object review(@AuthenticationPrincipal AuthUser user,@PathVariable long id,@RequestBody Map<String,Object> body){return api.review(user.id(),id,body);}
+    @PostMapping @ResponseStatus(HttpStatus.CREATED) public Object create(@RequestBody Map<String,Object> body){return api.createMovie(body);}
+    @PutMapping("/{id}") public Object update(@PathVariable long id,@RequestBody Map<String,Object> body){return api.updateMovie(id,body);}
+    @DeleteMapping("/{id}") public Object delete(@PathVariable long id){return api.deleteMovie(id);}
 }

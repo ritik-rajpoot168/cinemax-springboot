@@ -46,10 +46,6 @@ export default function Checkout() {
   const grandTotal = totalAmount + tax + convFee;
 
   const handlePayment = async () => {
-    if (!stripe || !elements) return;
-    const card = elements.getElement(CardElement);
-    if (!card) return;
-
     setCardError('');
     setProcessing(true);
 
@@ -60,29 +56,30 @@ export default function Checkout() {
         bookingData: { movieId, showTimeId, seats },
       });
 
-      const { clientSecret, paymentIntentId } = intentRes.data;
+      const { clientSecret, paymentIntentId, mock } = intentRes.data;
 
-      // Step 2: Confirm card payment with Stripe
-      const { error, paymentIntent } = await stripe.confirmCardPayment(clientSecret, {
-        payment_method: { card },
+      // Step 2: In demo mode the backend issues a one-use mock intent. Live mode uses Stripe.
+      if (!mock) {
+        const card = elements?.getElement(CardElement);
+        if (!stripe || !card) throw new Error('Card payment is not ready. Check your Stripe publishable key.');
+        const { error, paymentIntent } = await stripe.confirmCardPayment(clientSecret, {
+          payment_method: { card },
+        });
+        if (error) {
+          setCardError(error.message);
+          return;
+        }
+        if (paymentIntent.status !== 'succeeded') return;
+      }
+
+      // Step 3: Confirm booking on backend
+      const confirmRes = await axios.post('/api/payment/confirm', {
+        paymentIntentId,
+        bookingData: { movieId, showTimeId, seats, totalAmount: grandTotal, theatreId, theatreName, theatreAddress, city },
       });
 
-      if (error) {
-        setCardError(error.message);
-        setProcessing(false);
-        return;
-      }
-
-      if (paymentIntent.status === 'succeeded') {
-        // Step 3: Confirm booking on backend
-        const confirmRes = await axios.post('/api/payment/confirm', {
-          paymentIntentId,
-          bookingData: { movieId, showTimeId, seats, totalAmount: grandTotal, theatreId, theatreName, theatreAddress, city },
-        });
-
-        toast.success('🎉 Booking confirmed!');
-        navigate(`/booking/${confirmRes.data.booking._id}`);
-      }
+      toast.success(mock ? '🎟 Demo booking confirmed!' : '🎉 Booking confirmed!');
+      navigate(`/booking/${confirmRes.data.booking._id}`);
     } catch (err) {
       toast.error(err.response?.data?.message || 'Payment failed. Please try again.');
     } finally {
@@ -113,13 +110,17 @@ export default function Checkout() {
               </h2>
 
               <div className="space-y-4">
-                <div>
-                  <label className="text-white/50 text-sm mb-2 block">Card Information</label>
-                  <div className="bg-dark-surface border border-dark-border rounded-lg px-4 py-4 focus-within:border-primary transition-colors">
-                    <CardElement options={CARD_ELEMENT_OPTIONS} />
+                {stripe ? (
+                  <div>
+                    <label className="text-white/50 text-sm mb-2 block">Card Information</label>
+                    <div className="bg-dark-surface border border-dark-border rounded-lg px-4 py-4 focus-within:border-primary transition-colors">
+                      <CardElement options={CARD_ELEMENT_OPTIONS} />
+                    </div>
+                    {cardError && <p className="text-primary text-sm mt-2">{cardError}</p>}
                   </div>
-                  {cardError && <p className="text-primary text-sm mt-2">{cardError}</p>}
-                </div>
+                ) : (
+                  <p className="text-amber-300 text-sm">Demo payment mode is active. Configure Stripe keys to accept card payments.</p>
+                )}
               </div>
 
               {/* Test Card Info */}

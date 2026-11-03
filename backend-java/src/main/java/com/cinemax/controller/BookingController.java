@@ -1,42 +1,19 @@
 package com.cinemax.controller;
 
 import com.cinemax.dto.SeatSelectionRequest;
-import com.cinemax.model.BookingView;
 import com.cinemax.security.AuthUser;
-import com.cinemax.service.BookingService;
-import jakarta.validation.Valid;
-import org.springframework.http.HttpStatus;
+import com.cinemax.service.MernCompatibilityService;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
-
-import java.util.List;
 import java.util.Map;
 
+/** Plural-path aliases retained for clients of the earlier Spring prototype. */
 @RestController
 @RequestMapping("/api/bookings")
 public class BookingController {
-    private final BookingService service;
-
-    public BookingController(BookingService service) {
-        this.service = service;
-    }
-
-    /** Checkout page: validates seats, returns Stripe clientSecret. */
-    @PostMapping("/checkout")
-    public Map<String, Object> checkout(@Valid @RequestBody SeatSelectionRequest r) {
-        return service.checkout(r);
-    }
-
-    /** Called after payment succeeds: creates the booking and locks the seats. */
-    @PostMapping
-    @ResponseStatus(HttpStatus.CREATED)
-    public BookingView create(@AuthenticationPrincipal AuthUser user, @Valid @RequestBody SeatSelectionRequest r) {
-        return service.book(user.id(), r);
-    }
-
-    /** My bookings page. */
-    @GetMapping("/my")
-    public List<BookingView> mine(@AuthenticationPrincipal AuthUser user) {
-        return service.myBookings(user.id());
-    }
+    private final MernCompatibilityService api;
+    public BookingController(MernCompatibilityService api){this.api=api;}
+    @PostMapping("/checkout") public Object checkout(@AuthenticationPrincipal AuthUser user,@RequestBody SeatSelectionRequest r){return api.createPayment(user.id(),Map.of("bookingData",Map.of("showTimeId",r.showTimeId(),"seats",r.seats())));}
+    @PostMapping public Object create(@AuthenticationPrincipal AuthUser user,@RequestBody SeatSelectionRequest r){Map<String,Object> data=new java.util.LinkedHashMap<>();data.put("showTimeId",r.showTimeId());data.put("seats",r.seats());Map<String,Object> body=new java.util.LinkedHashMap<>();body.put("paymentIntentId",r.paymentRef());body.put("bookingData",data);return api.confirmPayment(user.id(),body);}
+    @GetMapping("/my") public Object mine(@AuthenticationPrincipal AuthUser user){return api.userBookings(user.id());}
 }

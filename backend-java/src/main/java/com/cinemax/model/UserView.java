@@ -7,6 +7,6 @@ public record UserView(long id, String name, String email, String role) {
     public long legacyId() { return id; }
 
     public static UserView from(User u) {
-        return new UserView(u.id(), u.name(), u.email(), u.role());
+        return new UserView(u.id(), u.name(), u.email(), u.role().toLowerCase(java.util.Locale.ROOT));
     }
 }

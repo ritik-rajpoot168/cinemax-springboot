@@ -31,10 +31,15 @@ public class SecurityConfig {
             .exceptionHandling(e -> e.authenticationEntryPoint(new HttpStatusEntryPoint(HttpStatus.UNAUTHORIZED)))
             .authorizeHttpRequests(auth -> auth
                 .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
-                .requestMatchers("/api/health", "/api/auth/register", "/api/auth/login").permitAll()
+                .requestMatchers("/", "/api/health", "/api/auth/register", "/api/auth/login", "/api/payment/webhook").permitAll()
+                .requestMatchers(HttpMethod.GET, "/api/movies/recommendations").authenticated()
                 .requestMatchers(HttpMethod.GET, "/api/movies/**", "/api/recommendations/**",
-                                 "/api/showtimes/**").permitAll()
+                                 "/api/showtimes/**", "/api/theatres/**", "/api/booking/seats/**").permitAll()
                 .requestMatchers("/api/admin/**").hasRole("ADMIN")
+                .requestMatchers(HttpMethod.POST, "/api/movies").hasRole("ADMIN")
+                .requestMatchers(HttpMethod.POST, "/api/movies/favorite/**", "/api/movies/review/**").authenticated()
+                .requestMatchers(HttpMethod.PUT, "/api/movies/**").hasRole("ADMIN")
+                .requestMatchers(HttpMethod.DELETE, "/api/movies/**").hasRole("ADMIN")
                 .anyRequest().authenticated())
             .addFilterBefore(jwtFilter, UsernamePasswordAuthenticationFilter.class);
         return http.build();
